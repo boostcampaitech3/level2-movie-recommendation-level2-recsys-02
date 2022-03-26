@@ -43,7 +43,6 @@ class DeepFM(nn.Module):
         return mlp_y
 
     def forward(self, x):
-        embed_x = self.embedding(x)
         #fm component
         fm_y = self.fm(x).squeeze(1)
         
