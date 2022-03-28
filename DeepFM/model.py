@@ -30,19 +30,15 @@ class DeepFM(nn.Module):
         mlp_layers.append(nn.Linear(mlp_dims[-1], 1))
         self.mlp_layers = nn.Sequential(*mlp_layers)
 
-    def fm(self, x):
-        embed_x = self.embedding_layer(x[:,:self.field_num-1])
-            
-        fm_y = self.bias + torch.sum(self.fc(x), dim=1)
+    def fm(self, x, embed_x):
+        fm_y = self.bias + torch.sum(self.fc_layer(x), dim=1)
         square_of_sum = torch.sum(embed_x, dim=1) ** 2         #TODO 2 : torch.sum을 이용하여 square_of_sum을 작성해주세요(hint : equation (2))
         sum_of_square = torch.sum(embed_x ** 2, dim=1)         #TODO 3 : torch.sum을 이용하여 sum_of_square을 작성해주세요(hint : equation (2))
         fm_y += 0.5 * torch.sum(square_of_sum - sum_of_square, dim=1, keepdim=True)
         return fm_y
     
     def mlp(self, x):
-        embed_x = self.embedding_layer(x[:,:self.field_num-1])
-        
-        inputs = embed_x.view(-1, self.embedding_dim)
+        inputs = x.view(-1, self.embedding_dim)
         mlp_y = self.mlp_layers(inputs)
         return mlp_y
 
@@ -63,12 +59,34 @@ class DeepFM(nn.Module):
         embed_x= torch.cat([embed_x, sum_embed.unsqueeze(1)], axis=1)
 
         return embed_x
+    
+    def fc_layer(self, x):
+        one_hot_x = x[:,:self.field_num-1]
+        multi_hot_x = x[:,self.field_num-1:]
+
+        embed_x = self.fc(one_hot_x)
+
+        sum_embed = []
+
+        for mhx in multi_hot_x :
+            genres = torch.where(mhx)
+            embed_genres = self.fc(genres[0] + self.offset)
+            sum_embed.append(torch.sum(embed_genres, axis=0).unsqueeze(0))
+        sum_embed = torch.cat(sum_embed, axis=0)
+
+        embed_x= torch.cat([embed_x, sum_embed.unsqueeze(1)], axis=1)
+
+        return embed_x
 
     def forward(self, x):
+        #embedding component
+        # start = time.time()
+        embed_x = self.embedding_layer(x)
         #fm component
-        fm_y = self.fm(x).squeeze(1)
+        fm_y = self.fm(x, embed_x).squeeze(1)
         #deep component
-        mlp_y = self.mlp(x).squeeze(1)
+        mlp_y = self.mlp(embed_x).squeeze(1)
         
         y = torch.sigmoid(fm_y + mlp_y)
+        # print(time.time() - start)
         return y

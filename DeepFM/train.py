@@ -203,17 +203,17 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 1)')
+    parser.add_argument('--epochs', type=int, default=20, help='number of epochs to train (default: 1)')
     parser.add_argument('--dataset', type=str, default='RatingDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--batch_size', type=int, default=1024, help='input batch size for training (default: 64)')
-    parser.add_argument('--valid_batch_size', type=int, default=512, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--valid_batch_size', type=int, default=1024, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='DeepFM', help='model type (default: DeepFM)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: Adam)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.1, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='binary_cross_entropy', help='criterion type (default: cross_entropy)')
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
-    parser.add_argument('--log_interval', type=int, default=500, help='how many batches to wait before logging training status')
+    parser.add_argument('--log_interval', type=int, default=200, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment
