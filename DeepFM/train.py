@@ -111,7 +111,7 @@ def train(data_dir, model_dir, args):
     best_val_loss = np.inf
     counter = 0
 
-    patience = 5
+    patience = 10
     accumulation_steps = 1
     for epoch in range(args.epochs):
         # train loop

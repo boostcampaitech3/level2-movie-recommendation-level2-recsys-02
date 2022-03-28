@@ -9,6 +9,8 @@ from tqdm import tqdm
 
 from dataset import TestDataset
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def load_model(saved_model, input_dims, device):
     model_cls = getattr(import_module("model"), args.model)
@@ -29,7 +31,7 @@ def inference(data_dir, model_dir, output_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    data = pd.read_csv(data_dir + '/eval/top10_unseen_items.csv')
+    data = pd.read_csv(data_dir + '/eval/UC with Side-Information.csv')
     dataset = TestDataset(data_dir, data)
 
     input_dims = dataset.get_input_dimensions()
@@ -46,6 +48,7 @@ def inference(data_dir, model_dir, output_dir, args):
     )
 
     print("Calculating inference results..")
+    
     preds = []
     with torch.no_grad():
         for inputs in loader:
@@ -54,7 +57,12 @@ def inference(data_dir, model_dir, output_dir, args):
             outs = model(inputs)
             preds.extend(outs.cpu().numpy())
 
+    print(f'Inference Done!')
+
+    print(f'Creating Submission File..')
     data['preds'] = preds
+
+    data = dataset.inverse_mapping(data)
 
     user_group_dfs = list(data.groupby('user'))
     submission = []
@@ -64,7 +72,8 @@ def inference(data_dir, model_dir, output_dir, args):
     submission = pd.concat(submission, axis = 0, sort=False)
     
     submission.to_csv(os.path.join(output_dir, f'output.csv'), index=False)
-    print(f'Inference Done!')
+
+    print('*** Finished ***')
 
 
 if __name__ == '__main__':
