@@ -1,18 +1,23 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import time
+
 class DeepFM(nn.Module):
     def __init__(self, input_dims, embedding_dim, mlp_dims, drop_rate=0.1):
         super(DeepFM, self).__init__()
+        self.field_num = len(input_dims)
         total_input_dim = int(sum(input_dims)) # n_user + n_movie + n_genre
+        self.offset = total_input_dim - 18
 
         # Fm component의 constant bias term과 1차 bias term
         self.bias = nn.Parameter(torch.zeros((1,)))
         self.fc = nn.Embedding(total_input_dim, 1)
         
         self.embedding = nn.Embedding(total_input_dim, embedding_dim) 
-        self.embedding_dim = len(input_dims) * embedding_dim
+        self.embedding_dim = self.field_num * embedding_dim
 
         mlp_layers = []
         for i, dim in enumerate(mlp_dims):
@@ -26,9 +31,8 @@ class DeepFM(nn.Module):
         self.mlp_layers = nn.Sequential(*mlp_layers)
 
     def fm(self, x):
-        # x : (batch_size, total_num_input)
-        embed_x = self.embedding(x)
-
+        embed_x = self.embedding_layer(x[:,:self.field_num-1])
+            
         fm_y = self.bias + torch.sum(self.fc(x), dim=1)
         square_of_sum = torch.sum(embed_x, dim=1) ** 2         #TODO 2 : torch.sum을 이용하여 square_of_sum을 작성해주세요(hint : equation (2))
         sum_of_square = torch.sum(embed_x ** 2, dim=1)         #TODO 3 : torch.sum을 이용하여 sum_of_square을 작성해주세요(hint : equation (2))
@@ -36,16 +40,33 @@ class DeepFM(nn.Module):
         return fm_y
     
     def mlp(self, x):
-        embed_x = self.embedding(x)
+        embed_x = self.embedding_layer(x[:,:self.field_num-1])
         
         inputs = embed_x.view(-1, self.embedding_dim)
         mlp_y = self.mlp_layers(inputs)
         return mlp_y
 
+    def embedding_layer(self, x):
+        one_hot_x = x[:,:self.field_num-1]
+        multi_hot_x = x[:,self.field_num-1:]
+
+        embed_x = self.embedding(one_hot_x)
+
+        sum_embed = []
+
+        for mhx in multi_hot_x :
+            genres = torch.where(mhx)
+            embed_genres = self.embedding(genres[0] + self.offset)
+            sum_embed.append(torch.sum(embed_genres, axis=0).unsqueeze(0))
+        sum_embed = torch.cat(sum_embed, axis=0)
+
+        embed_x= torch.cat([embed_x, sum_embed.unsqueeze(1)], axis=1)
+
+        return embed_x
+
     def forward(self, x):
         #fm component
         fm_y = self.fm(x).squeeze(1)
-        
         #deep component
         mlp_y = self.mlp(x).squeeze(1)
         
