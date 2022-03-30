@@ -4,9 +4,10 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, Subset, random_split
+from scipy.sparse import dok_matrix
 
 
-class RatingDataset(Dataset):
+class DeepFMDataset(Dataset):
     def __init__(self, data_path):
         self.data = pd.read_csv(data_path)
 
@@ -61,8 +62,7 @@ class RatingDataset(Dataset):
             self.data['item']  = self.data['item'].map(lambda x : items_dict[x])
 
 
-
-class TestDataset(Dataset):
+class DeepFMTestDataset(Dataset):
     def __init__(self, data_dir, data):
         train_df = pd.read_csv(data_dir+'/train/context-aware/Ratings with Side-Information.csv')
 
@@ -117,3 +117,69 @@ class TestDataset(Dataset):
         data_df['item'] = data_df['item'].map(lambda x : inv_item_map[x])
 
         return data_df
+
+
+class BPRDataset(Dataset):
+	def __init__(self, data_path, num_negative=5, is_training=True):
+		super(BPRDataset, self).__init__()
+		
+		self.data = pd.read_csv(data_path)
+
+		if is_training :
+			self.data = self.data[['user', 'item']].sort_values(by=['user'])
+		else :
+			self.data = self.data[['user', 'item', 'rating']].sort_values(by=['user'])
+
+		self.zero_based_mapping()
+		if is_training :
+			self.get_sparse_matrix()
+
+		self.num_negative = num_negative
+		self.is_training = is_training
+		self.features = self.data.values
+
+	def negative_sampling(self):
+		assert self.is_training, 'no need to sampling when testing'
+		negative_samples = []
+		
+		for u, i in self.data.values:
+			for _ in range(self.num_negative):
+				j = np.random.randint(self.n_item)
+				while (u, j) in self.train_matrix:
+					j = np.random.randint(self.n_item)
+				negative_samples.append([u, i, j])
+		
+		self.features = negative_samples
+
+	def __len__(self):
+		return self.num_negative * len(self.data) if \
+				self.is_training else len(self.data)
+
+	def __getitem__(self, idx):
+		user = self.features[idx][0]
+		item_i = self.features[idx][1]
+		item_j = self.features[idx][2] if \
+				self.is_training else self.features[idx][1]
+		return user, item_i, item_j 
+	
+	def zero_based_mapping(self) :
+		users = list(set(self.data.loc[:,'user']))
+		items =  list(set(self.data.loc[:, 'item']))
+
+		self.n_user = len(users)
+		self.n_item = len(items)
+
+		# user, item을 zero-based index로 mapping
+		if self.n_user-1 != max(users):
+			users_dict = {users[i]: i for i in range(len(users))}
+			self.data['user']  = self.data['user'].map(lambda x : users_dict[x])
+
+		if self.n_item-1 != max(items):
+			items_dict = {items[i]: i for i in range(len(items))}
+			self.data['item']  = self.data['item'].map(lambda x : items_dict[x])
+	
+	def get_sparse_matrix(self):
+		train_matrix = dok_matrix((self.n_user, self.n_item), dtype=np.float32)
+		for u, i in self.data.values:
+			train_matrix[u, i] = 1.0
+		self.train_matrix = train_matrix
