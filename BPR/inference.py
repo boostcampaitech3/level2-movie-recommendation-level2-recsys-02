@@ -44,7 +44,7 @@ def inference(data_dir, model_dir, output_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     print('Loading Dataset ...', end=' ')
-    dataset = BPRDataset(data_dir + '/eval/Unobserved Cases.csv', is_training=False)
+    dataset = BPRDataset(data_dir + '/eval/Unobserved Cases Top 10%.csv', is_training=False)
 
     model = load_model(model_dir, 31360, 6807, device).to(device)
     model.eval()

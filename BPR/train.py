@@ -94,6 +94,7 @@ def train(data_dir, model_dir, args):
     
     train_set = dataset_module(
         data_path=data_dir+'train.csv',
+        num_negative=20
     )
     
     val_set = dataset_module(
@@ -202,7 +203,7 @@ def train(data_dir, model_dir, args):
             
             val_recall_k = get_valid_score(all_preds, val_set.data)
 
-            if val_recall_k > best_val_recall_k:
+            if val_recall_k - 0.001 > best_val_recall_k:
                 print("New best model for val accuracy! saving the model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_recall_k = val_recall_k
@@ -214,8 +215,8 @@ def train(data_dir, model_dir, args):
                 print("Early Stopping...")
                 break
             print(
-                f"[Val] acc : {val_recall_k:4.4%} || "
-                f"best acc : {best_val_recall_k:4.4%} "
+                f"[Val] recall@10 : {val_recall_k:4.4%} || "
+                f"best recall@10 : {best_val_recall_k:4.4%} "
             )
             logger.add_scalar("Val/accuracy", val_recall_k, epoch)
             print()
@@ -239,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.1, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='binary_cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
+    parser.add_argument('--lr_decay_step', type=int, default=10, help='learning rate scheduler deacy step (default: 20)')
     parser.add_argument('--log_interval', type=int, default=2000, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 

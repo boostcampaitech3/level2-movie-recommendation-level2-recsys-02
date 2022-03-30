@@ -25,18 +25,20 @@ def zero_based_mapping(data) :
         data['item']  = data['item'].map(lambda x : items_dict[x])
     
     return data, n_user, n_item
-    
+
 
 class BPRDataset(Dataset):
-    def __init__(self, data_path, num_negative=5, is_training=True):
+    def __init__(self, data_path, num_negative=5, is_training=True, all_cases=False):
         super(BPRDataset, self).__init__()
 
-        self.data = pd.read_csv(data_path)
-
-        if 'rating' not in self.data.columns :
-            self.data = self.data[['user', 'item']].sort_values(by=['user'])
+        if all_cases :
+            self.data = self.get_all_cases()
         else :
-            self.data = self.data[['user', 'item', 'rating']].sort_values(by=['user'])
+            self.data = pd.read_csv(data_path)
+            if 'rating' not in self.data.columns :
+                self.data = self.data[['user', 'item']].sort_values(by=['user'])
+            else :
+                self.data = self.data[['user', 'item', 'rating']].sort_values(by=['user'])
 
         self.data, self.n_user, self.n_item= zero_based_mapping(self.data)
         
@@ -77,3 +79,26 @@ class BPRDataset(Dataset):
         for u, i in self.data.values:
             train_matrix[u, i] = 1.0
         self.train_matrix = train_matrix
+    
+    def get_all_cases(self):
+        # Extract Top Most Popular movies
+        train_df = pd.read_csv('/opt/ml/movie-recommendation/data/train/train_ratings.csv')
+
+        items = set(train_df['item'])
+        observed_items_per_user = list(train_df.groupby('user')['item'])
+
+        # 각 유저마다 안본 영화만 선택
+        unseen_items_dfs = list()
+
+        for user, observed_items in observed_items_per_user:
+            observed_items = set(observed_items)
+            unseen_item = list(items - observed_items)
+
+            user_id = [user]*len(unseen_item)
+            unseen_items_dfs.append(pd.DataFrame(zip(user_id,unseen_item), columns=['user','item']))
+
+        test_df = pd.concat(unseen_items_dfs, axis = 0, sort=False)
+
+        test_df = test_df.sort_values(by=['user'])
+        test_df.reset_index(drop=True, inplace=True)
+        return test_df
