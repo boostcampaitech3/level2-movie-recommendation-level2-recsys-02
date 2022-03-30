@@ -235,12 +235,12 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=1024, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1024, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BPR', help='model type (default: BPR)')
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
+    parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.1, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='binary_cross_entropy', help='criterion type (default: cross_entropy)')
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
-    parser.add_argument('--log_interval', type=int, default=500, help='how many batches to wait before logging training status')
+    parser.add_argument('--log_interval', type=int, default=2000, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment

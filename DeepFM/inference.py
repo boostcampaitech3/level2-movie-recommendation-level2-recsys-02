@@ -9,8 +9,19 @@ from tqdm import tqdm
 
 from dataset import TestDataset
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+def inverse_mapping(data):   
+    train_df = pd.read_csv('/opt/ml/movie-recommendation/data/train/train_ratings.csv')
+
+    users = list(set(train_df.loc[:,'user']))
+    items =  list(set(train_df.loc[:, 'item']))
+
+    inv_user_map = {i: users[i] for i in range(len(users))}
+    data['user']  = data['user'].map(lambda x : inv_user_map[x])
+
+    inv_item_map = {i: items[i] for i in range(len(items))}
+    data['item'] = data['item'].map(lambda x : inv_item_map[x])
+
+    return data
 
 def load_model(saved_model, input_dims, device):
     model_cls = getattr(import_module("model"), args.model)
@@ -47,7 +58,7 @@ def inference(data_dir, model_dir, output_dir, args):
         drop_last=False,
     )
 
-    print("Calculating inference results..")
+    print("Calculating inference results...", end=' ')
     
     preds = []
     with torch.no_grad():
@@ -57,12 +68,12 @@ def inference(data_dir, model_dir, output_dir, args):
             outs = model(inputs)
             preds.extend(outs.cpu().numpy())
 
-    print(f'Inference Done!')
+    print('Done!!')
 
-    print(f'Creating Submission File..')
+    print('Creating Submission File...', end=' ')
     data['preds'] = preds
 
-    data = dataset.inverse_mapping(data)
+    data = inverse_mapping(data)
 
     user_group_dfs = list(data.groupby('user'))
     submission = []
@@ -71,9 +82,9 @@ def inference(data_dir, model_dir, output_dir, args):
         submission.append(top10_preds[['user', 'item']])
     submission = pd.concat(submission, axis = 0, sort=False)
     
-    submission.to_csv(os.path.join(output_dir, f'output.csv'), index=False)
+    submission.to_csv(os.path.join(output_dir, 'output.csv'), index=False)
 
-    print('*** Finished ***')
+    print('Done!!')
 
 
 if __name__ == '__main__':
