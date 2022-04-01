@@ -15,7 +15,7 @@ m2v_item_index에서 해당 아이템의 인덱스를 불러올 수 있습니다
 
 - m2v_item_index 예시)
 ```
-train_rating.csv 파일에서 item id 1 = 'i1'   
+# train_rating.csv 파일에서 item id 1 = 'i1'   
 {'i8973': 0,
  'i1097': 1,
  'i3363': 2,
