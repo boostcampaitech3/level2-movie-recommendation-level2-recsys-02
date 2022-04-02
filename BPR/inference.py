@@ -5,20 +5,19 @@ from importlib import import_module
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+import json
 
 from dataset import BPRDataset
 
+
 def inverse_mapping(data):   
-    train_df = pd.read_csv('/opt/ml/movie-recommendation/data/train/train_ratings.csv')
+    with open('/opt/ml/movie-recommendation/data/train/zero_mapping.json', 'r') as f:
+        dict_data= json.load(f)
 
-    users = list(set(train_df.loc[:,'user']))
-    items =  list(set(train_df.loc[:, 'item']))
-
-    inv_user_map = {i: users[i] for i in range(len(users))}
+    inv_user_map = {v:int(k) for k,v in dict_data['user'].items()}
     data['user'] = data['user'].map(lambda x : inv_user_map[x])
 
-    inv_item_map = {i: items[i] for i in range(len(items))}
+    inv_item_map = {v:int(k) for k,v in dict_data['item'].items()}
     data['item'] = data['item'].map(lambda x : inv_item_map[x])
 
     return data
@@ -43,11 +42,11 @@ def inference(data_dir, model_dir, output_dir, args):
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    print('Loading Dataset ...', end=' ')
-    dataset = BPRDataset(data_dir + '/eval/Unobserved Cases Top 10%.csv', is_training=False)
-
     model = load_model(model_dir, 31360, 6807, device).to(device)
     model.eval()
+
+    print('Loading Dataset ...', end=' ')
+    dataset = BPRDataset(data_dir + '/eval/Unobserved Cases Top 10%.csv', is_training=False)
 
     loader = DataLoader(
         dataset,
@@ -63,7 +62,6 @@ def inference(data_dir, model_dir, output_dir, args):
     
     with torch.no_grad():
         model.eval()
-
         preds = []
         
         for batch in loader:
@@ -73,7 +71,6 @@ def inference(data_dir, model_dir, output_dir, args):
             item_j = item_j.to(device)
 
             prediction_i, _ = model(user, item_i, item_j)
-
             preds.append(prediction_i)
         
         preds = torch.cat(preds).detach().cpu().numpy()

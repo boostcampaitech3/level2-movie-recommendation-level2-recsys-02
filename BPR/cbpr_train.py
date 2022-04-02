@@ -125,6 +125,7 @@ def train(data_dir, model_dir, args):
         user_num = train_set.n_user, 
         item_num = train_set.n_item,
         factor_num = 10, 
+        context_dims = [12,30]
     ).to(device)
     model = torch.nn.DataParallel(model)
 
@@ -155,12 +156,10 @@ def train(data_dir, model_dir, args):
         print('Done!!')
 
         for idx, train_batch in enumerate(train_loader):
-            user, item_i, item_j = train_batch
-            user = user.to(device)
-            item_i = item_i.to(device)
-            item_j = item_j.to(device)
+            train_batch = tuple(t.to(device) for t in train_batch)
+            user, item_i, item_j, context_i, context_j = train_batch
 
-            prediction_i, prediction_j = model(user, item_i, item_j)
+            prediction_i, prediction_j = model(user, item_i, item_j, context_i, context_j)
             loss =- (prediction_i - prediction_j).sigmoid().log().sum()
 
             loss.backward()
@@ -191,11 +190,10 @@ def train(data_dir, model_dir, args):
 
             all_preds = []
             for val_batch in val_loader:
-                user, item_i, item_j = val_batch
-                item_i = item_i.to(device)
-                item_j = item_j.to(device)
+                val_batch = tuple(t.to(device) for t in val_batch)
+                user, item_i, item_j, context_i, context_j = val_batch
 
-                prediction_i, prediction_j = model(user, item_i, item_j)
+                prediction_i, prediction_j = model(user, item_i, item_j, context_i, context_j)
 
                 all_preds.append(prediction_i)
             
@@ -230,20 +228,18 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
     parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 1)')
-    parser.add_argument('--dataset', type=str, default='BPRDataset', help='dataset augmentation type (default: MaskBaseDataset)')
+    parser.add_argument('--dataset', type=str, default='ContextualBPRDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--batch_size', type=int, default=1024, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1024, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='BPR', help='model type (default: BPR)')
+    parser.add_argument('--model', type=str, default='ContextualBPR', help='model type (default: BPR)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
-    parser.add_argument('--val_ratio', type=float, default=0.1, help='ratio for validaton (default: 0.2)')
-    parser.add_argument('--criterion', type=str, default='binary_cross_entropy', help='criterion type (default: cross_entropy)')
     parser.add_argument('--lr_decay_step', type=int, default=10, help='learning rate scheduler deacy step (default: 20)')
+    parser.add_argument('--log_interval', type=int, default=2000, help='how many batches to wait before logging training status')
+    parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
     parser.add_argument('--num_negative', type=int, default=10, help='number of negative samples (default: 10)')
     parser.add_argument('--patience', type=int, default=5, help='patience for early stopping (default: 5)')
     parser.add_argument('--accumulation_steps', type=int, default=1, help='batch accumulation step (default: 1)')
-    parser.add_argument('--log_interval', type=int, default=2000, help='how many batches to wait before logging training status')
-    parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/movie-recommendation/data/train/bpr/'))
