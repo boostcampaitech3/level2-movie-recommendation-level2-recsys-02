@@ -1,10 +1,13 @@
 import numpy as np
 import pandas as pd
 import json
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, random_split, Subset
 from scipy.sparse import dok_matrix
 import bisect
 import random
+import torch
+from typing import Tuple
+
 
 def zero_based_mapping(data) :
     with open('/opt/ml/movie-recommendation/data/train/zero_mapping.json', 'r') as f:
@@ -165,3 +168,46 @@ class ContextualBPRDataset(BPRDataset):
             attributes.append([now_attribute[0]]+attribute)
         
         return np.array(attributes)
+
+
+class FMDataset(Dataset):
+    def __init__(self, data_path):
+        self.data = pd.read_csv(data_path)
+
+        self.data, _, _ = zero_based_mapping(self.data)
+        self.attributes = self.get_item_attributes()
+
+        self.X = torch.tensor(np.array(self.data.loc[:, ['user', 'item']])).long()
+        self.y = torch.tensor(np.array(self.data.loc[:, 'rating'])).long()
+
+    def __getitem__(self, index):
+        item_i = self.X[index, 1]
+        X = torch.cat([self.X[index], self.attributes[item_i]])
+        return X, self.y[index]
+
+    def __len__(self):
+        return len(self.data)
+
+    def split_dataset(self, train_ratio=0.9) -> Tuple[Subset, Subset]:
+        train_size = int(train_ratio * len(self.data))
+        test_size = len(self.data) - train_size
+        train_dataset, test_dataset = random_split(self, [train_size, test_size])
+        
+        return train_dataset, test_dataset
+    
+    def get_item_attributes(self):
+        data_dir = '/opt/ml/movie-recommendation/data/train/'
+
+        with open(data_dir+'item2attributes.json', 'r') as f:
+            item2attributes = json.load(f)
+
+        attributes = []
+
+        for item in range(6807):    
+            attribute = [0] * 18
+            now_attribute = item2attributes[str(item)]
+            for a in now_attribute[1:]:
+                attribute[a] = 1
+            attributes.append([now_attribute[0]]+attribute)
+        
+        return torch.tensor(attributes)
