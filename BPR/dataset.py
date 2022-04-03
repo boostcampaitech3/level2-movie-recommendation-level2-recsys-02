@@ -6,6 +6,7 @@ from scipy.sparse import dok_matrix
 import bisect
 import random
 import torch
+import pickle
 from typing import Tuple
 
 
@@ -168,6 +169,33 @@ class ContextualBPRDataset(BPRDataset):
             attributes.append([now_attribute[0]]+attribute)
         
         return np.array(attributes)
+
+
+class m2vBPRDataset(ContextualBPRDataset):
+    def __init__(self, data_path, num_negative=5, is_training=True, all_cases=False):
+        super(m2vBPRDataset, self).__init__(
+            data_path=data_path,
+            num_negative=num_negative,
+            is_training=is_training,
+            all_cases=all_cases
+        )
+
+        self.item_context = self.get_item_context()
+    
+    def get_item_context(self):
+        m2v_dir = '/opt/ml/movie-recommendation/data/train/m2v/'
+
+        with open(m2v_dir+'m2v_item2index.pkl', 'rb') as f :
+            m2v_item2index = pickle.load(f)
+
+        with open(m2v_dir+'m2v_item_emb.pkl', 'rb') as f :
+            m2v_item_emb = pickle.load(f)
+
+        attributes = np.zeros(shape=m2v_item_emb.shape)
+        for np_index, item_id in m2v_item2index.items():
+            attributes[item_id] = m2v_item_emb[np_index]
+        
+        return attributes
 
 
 class FMDataset(Dataset):

@@ -209,7 +209,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='FMDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--batch_size', type=int, default=1024, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1024, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='FM', help='model type (default: BPR)')
+    parser.add_argument('--model', type=str, default='DeepFM', help='model type (default: BPR)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: SGD)')
     parser.add_argument('--criterion', type=str, default='binary_cross_entropy', help='criterion type (default: cross_entropy)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
