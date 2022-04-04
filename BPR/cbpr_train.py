@@ -234,7 +234,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='ContextualBPRDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--batch_size', type=int, default=1024, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1024, help='input batch size for validing (default: 1000)')
-    parser.add_argument('--model', type=str, default='ContextualBPRv2', help='model type (default: BPR)')
+    parser.add_argument('--model', type=str, default='ContextualBPRv3', help='model type (default: BPR)')
     parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: Adam)')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--lr_decay_step', type=int, default=10, help='learning rate scheduler deacy step (default: 20)')

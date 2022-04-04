@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
 import os
+from importlib import import_module
 
 
-def load_model(saved_model, device=torch.device("cuda")):
-    model = FM(
+def load_model(saved_model, model_name, device=torch.device("cuda")):
+    model_module = getattr(import_module("model"), model_name)
+    model = model_module(
         input_dims=[31360,6807,12,18],
         embedding_dim=10
     )
@@ -121,7 +123,7 @@ class ContextualBPRv2(BPR):
     def __init__(self, user_num, item_num, factor_num, context_dim=10):
         super(ContextualBPRv2, self).__init__(user_num, item_num, factor_num)
 
-        self.fm = load_model('/opt/ml/movie-recommendation/BPR/model/exp13/')
+        self.fm = load_model('/opt/ml/movie-recommendation/BPR/model/FM/', 'FM')
         for _ in filter(lambda p: p.requires_grad, self.fm.parameters()) :
             assert 'Freezing doesn\'t work'
 
@@ -182,7 +184,7 @@ class ContextualBPRv3(ContextualBPRv2):
     def __init__(self, user_num, item_num, factor_num, context_dim=20):
         super(ContextualBPRv3, self).__init__(user_num, item_num, factor_num)
 
-        self.deepfm = load_model('/opt/ml/movie-recommendation/BPR/model/exp13/')
+        self.deepfm = load_model('/opt/ml/movie-recommendation/BPR/model/DeepFM/', 'DeepFM')
         for _ in filter(lambda p: p.requires_grad, self.deepfm.parameters()) :
             assert 'Freezing doesn\'t work'
 
@@ -191,6 +193,8 @@ class ContextualBPRv3(ContextualBPRv2):
 
         self.embed_context = nn.Linear(context_dim, factor_num, bias=False)
         self.embed_user_context = nn.Embedding(user_num, factor_num)
+
+        self.embedding_dim = self.deepfm.embedding_dim
     
     def forward(self, user, item_i, item_j, context_i, context_j):
         bpr_i, bpr_j = self.bpr(user, item_i, item_j)
@@ -210,7 +214,7 @@ class ContextualBPRv3(ContextualBPRv2):
         sum_of_square = torch.sum(embed_x ** 2, dim=1)
         features = 0.5 * (square_of_sum - sum_of_square) + bias
         
-        return torch.cat([features, self.mlp_layers[:-1](embed_x)], dim=1)
+        return torch.cat([features, self.deepfm.mlp_layers[:-1](embed_x.view(-1, self.embedding_dim))], dim=1)
 
 
 class ContextualBPRv4(ContextualBPR):
