@@ -65,12 +65,24 @@ class F1Loss(nn.Module):
         return 1 - f1.mean()
 
 
+class TOP1_max(nn.Module):
+    def __init__(self):
+        super(TOP1_max, self).__init__()
+
+    def forward(self, logit):
+        logit_softmax = F.softmax(logit, dim=1)
+        diff = -(logit.diag().view(-1, 1).expand_as(logit) - logit)
+        loss = torch.mean(logit_softmax * (torch.sigmoid(diff) + torch.sigmoid(logit ** 2)))
+        return loss
+
+
 _criterion_entrypoints = {
     'cross_entropy': nn.CrossEntropyLoss,
     'binary_cross_entropy' : nn.BCELoss,
     'focal': FocalLoss,
     'label_smoothing': LabelSmoothingLoss,
-    'f1': F1Loss
+    'f1': F1Loss,
+    'top1_max': TOP1_max
 }
 
 

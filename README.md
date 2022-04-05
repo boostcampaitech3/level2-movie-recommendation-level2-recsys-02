@@ -9,3 +9,4 @@
 |?|CBPR|DeepFM + BPR|-|
 |?|CBPR|m2v + BPR|-|
 |?|item2vec||-|
+|?|GRU4REC||-|
