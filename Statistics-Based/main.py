@@ -9,12 +9,16 @@ def main(args) :
     df = pd.read_csv(args.data_path + 'train_ratings.csv')
     df, movie_to_id, id_to_movie, popular_items = preprocess(df)
     
-    model = StaticsBasedModel(df) 
-    model.count_appearance()
+    # model = StaticsBasedModel(df) 
+    # model.count_appearance()
+
+    # with open('./st_model_not_cal.pkl', 'wb') as f :
+    #     pickle.dump(model, f)
+
+    with open('./st_model_not_cal.pkl', 'rb') as f :
+        model = pickle.load(f)
+
     model.cal_ratio()
-    
-    with open('./st_model.pkl', 'wb') as f :
-        pickle.dump(model, f)
 
     sub_u, sub_i = recommend(model, id_to_movie, popular_items)
     save_submission(sub_u, sub_i, args.save_path)

@@ -7,6 +7,6 @@ def preprocess(df) :
     id_to_movie = {v: k for k, v in movie_to_id.items()}
     
     df['item'] = df['item'].apply(lambda x : movie_to_id[x])
-    popular_items = list(df['item'].value_counts()[:1000].keys())
+    popular_items = list(df['item'].value_counts()[:100].keys())
     print("Complete!")
     return df, movie_to_id, id_to_movie, popular_items
