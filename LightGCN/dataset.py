@@ -1,4 +1,5 @@
 from sklearn.metrics.pairwise import cosine_similarity
+
 import pickle
 
 def load_m2v_embeddings() :

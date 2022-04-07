@@ -1,5 +1,11 @@
 import os
 import argparse
+from tqdm import tqdm
+import torch
+from torch import optim
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+
 from preprocess import *
 from dataset import * 
 from lightgcn import *
@@ -7,7 +13,7 @@ from inference import *
 
 def train(args) :
     # preprocessing
-    train_graph, id_to_movie, id_to_user, data_array_train, data_array_test, num_user, num_item = preprocess(args.data_path)
+    train_graph, id_to_movie, id_to_user, movie_to_id, id_to_movie, data_array_train, data_array_test, num_user, num_item = preprocess(args.data_path)
     cosine_sim, m2v_item_index, m2v_item_index_inverse = load_m2v_embeddings()
     neg_items = load_neg_items()
     

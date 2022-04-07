@@ -36,7 +36,7 @@ def preprocess(data_path) :
     data_array = np.concatenate([data_array_train, data_array_test], axis=0)
 
     train_graph = create_graph(data_array_train)
-    return train_graph, id_to_movie, id_to_user, data_array_train, data_array_test, num_user, num_item
+    return train_graph, id_to_movie, id_to_user, movie_to_id, id_to_movie, data_array_train, data_array_test, num_user, num_item
     
 def create_graph(data_array_train) :
     u_nodes, v_nodes = [], []

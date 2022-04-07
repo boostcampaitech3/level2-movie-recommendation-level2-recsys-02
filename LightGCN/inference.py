@@ -1,3 +1,4 @@
+import torch
 import pandas as pd
 
 def get_rating(all_users, items_emb, user) :
