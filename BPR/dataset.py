@@ -23,6 +23,21 @@ def zero_based_mapping(data) :
     return data, n_user, n_item
 
 
+def make_batch(samples):
+    users = [sample['user'] for sample in samples]
+    pos_items = [sample['pos_item'] for sample in samples]
+    neg_items = [sample['neg_item'] for sample in samples]
+    seq_lens = [sample['seq_len']+1 for sample in samples]
+    item_seqs = [sample['item_seq'] for sample in samples]
+
+    padded_item_seqs = torch.nn.utils.rnn.pad_sequence(item_seqs, batch_first=True)
+    return {'user': torch.stack(users).contiguous(),
+            'pos_item': torch.stack(pos_items).contiguous(),
+            'neg_item': torch.stack(neg_items).contiguous(),
+            'item_seq': padded_item_seqs.contiguous(),
+            'seq_len': torch.stack(seq_lens).contiguous()}
+            
+
 class BPRDataset(Dataset):
     def __init__(self, data_path, num_negative=5, is_training=True, all_cases=False):
         super(BPRDataset, self).__init__()
@@ -242,13 +257,9 @@ class FMDataset(Dataset):
 
 
 class GRU4RECDataset(object):
-    def __init__(self, data_dir, session_key='session', item_key='item', time_key='time', is_training=True):
+    def __init__(self, data_path, session_key='session', item_key='item', time_key='time'):
         # Read csv
-        self.data_dir = data_dir
-        if is_training :
-            self.df = pd.read_csv(self.data_dir + 'gru/train.csv')
-        else :
-            self.df = pd.read_csv(self.data_dir + 'gru/valid.csv')
+        self.df = pd.read_csv(data_path)
         
         self.session_key = session_key
         self.item_key = item_key
@@ -260,7 +271,7 @@ class GRU4RECDataset(object):
         self.session_idx_arr = self.order_session_idx()
 
     def add_item_indices(self):
-        with open(self.data_dir + 'zero_mapping.json', 'r') as f:
+        with open('/opt/ml/movie-recommendation/data/train/zero_mapping.json', 'r') as f:
             dict_data= json.load(f)
         self.df['item']  = self.df['item'].map(lambda x : dict_data['item'][str(x)])
 
@@ -334,3 +345,106 @@ class GRU4RECDataLoader():
                 iters[idx] = maxiter
                 start[idx] = click_offsets[session_idx_arr[maxiter]]
                 end[idx] = click_offsets[session_idx_arr[maxiter] + 1]
+
+
+class GRU4RECTestDataLoader():
+    def __init__(self, dataset, batch_size=50):
+        """
+        A class for creating session-parallel mini-batches.
+        Args:
+             dataset (SessionDataset): the session dataset to generate the batches from
+             batch_size (int): size of the batch
+        """
+        self.dataset = dataset
+        self.batch_size = batch_size
+
+    def __iter__(self):
+        """ Returns the iterator for producing session-parallel training mini-batches.
+        Yields:
+            input (B,): torch.FloatTensor. Item indices that will be encoded as one-hot vectors later.
+            target (B,): a Variable that stores the target item indices
+            masks: Numpy array indicating the positions of the sessions to be terminated
+        """
+        # initializations
+        df = self.dataset.df
+        click_offsets = self.dataset.click_offsets
+        session_idx_arr = self.dataset.session_idx_arr
+
+        iters = np.arange(self.batch_size)
+        maxiter = iters.max()
+        start = click_offsets[session_idx_arr[iters]]
+        end = click_offsets[session_idx_arr[iters] + 1]
+        mask = []  # indicator for the sessions to be terminated
+        finished = False
+
+        while not finished:
+            minlen = (end - start).min()
+
+            for i in range(minlen):
+                # Build inputs
+                idx_input = df.item.values[start + i]
+                input = torch.LongTensor(idx_input)
+                yield input, mask
+
+            # click indices where a particular session meets second-to-last element
+            start = start + minlen
+            # see if how many sessions should terminate
+            mask = np.arange(len(iters))[(end - start) == 0]
+            for idx in mask:
+                maxiter += 1
+                if maxiter >= len(click_offsets) - 1:
+                    finished = True
+                    break
+                # update the next starting/ending point
+                iters[idx] = maxiter
+                start[idx] = click_offsets[session_idx_arr[maxiter]]
+                end[idx] = click_offsets[session_idx_arr[maxiter] + 1]
+
+
+class SequentialDataset(Dataset):
+    def __init__(self, data, num_negative=10, is_training=False) :
+        self.data = data[['user', 'item']]
+        self.n_user = self.data['user'].nunique() 
+        self.n_item = self.data['item'].nunique()
+        self.num_negative = num_negative
+        self.is_training = is_training
+        
+        self.user2seq = dict()
+        user_item_sequence = list(self.data.groupby(by='user')['item'])
+        for user, item_seq in user_item_sequence :
+            self.user2seq[user] = list(item_seq)
+        
+        if not self.is_training :
+            self.users = list(self.user2seq.keys())
+            self.item_seqs = list(self.user2seq.values())
+
+    def negative_sampling(self):
+        assert self.is_training, 'no need to sampling when testing'
+        negative_samples = []
+        
+        for u, i in self.data.values:
+            for _ in range(self.num_negative):
+                j = np.random.randint(self.n_item)
+                while j in self.user2seq[u]:
+                    j = np.random.randint(self.n_item)
+                negative_samples.append([u, i, j])
+        self.features = negative_samples
+
+    def __len__(self):
+        return self.num_negative * len(self.data) if self.is_training else self.n_user
+    
+    def __getitem__(self, idx):
+        return {"user":torch.tensor(self.features[idx][0]), 
+                "pos_item": torch.tensor(self.features[idx][1]),
+                "neg_item": torch.tensor(self.features[idx][2]),
+                "item_seq": torch.tensor(
+                    list(set(self.user2seq[self.features[idx][0]]) - \
+                    set([self.features[idx][1]]))
+                ),
+                "seq_len": torch.tensor(len(self.user2seq[self.features[idx][0]])-1),}\
+                if self.is_training else \
+                {"user":torch.tensor(self.users[idx]),
+                "pos_item": torch.arange(0,self.n_item),
+                "neg_item": torch.tensor([0]),
+                "item_seq": torch.tensor(self.item_seqs[idx]),
+                "seq_len": torch.tensor(len(self.item_seqs[idx])),}
