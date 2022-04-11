@@ -167,7 +167,7 @@ if __name__ == '__main__':
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
     parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 10)')
-    parser.add_argument('--dataset', type=str, default='SequentialDataset', help='dataset augmentation type (default: MaskBaseDataset)')
+    parser.add_argument('--dataset', type=str, default='SequentialDatasetv3', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--batch_size', type=int, default=1024, help='input batch size for training (default: 64)')
     # parser.add_argument('--valid_batch_size', type=int, default=1024, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='FPMC', help='model type (default: BPR)')

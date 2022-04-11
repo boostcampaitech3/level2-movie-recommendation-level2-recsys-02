@@ -5,9 +5,8 @@ from importlib import import_module
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-import json
 
-from dataset import SequentialDataset, make_batch
+from dataset import make_batch
 
 
 def preprocess(df) :
@@ -53,14 +52,8 @@ def inference(data_dir, model_dir, output_dir, args):
     df = pd.read_csv(data_dir+'train_ratings.csv')
     df, user_to_id, id_to_user, movie_to_id, id_to_movie = preprocess(df)
 
-    test_dataset = SequentialDataset(df)
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False, 
-        drop_last=False,
-        collate_fn=make_batch,
-    )
+    user_item_dfs = df.groupby('user')
+    dataset_module = getattr(import_module("dataset"), args.dataset)
 
     print('Done!!')
 
@@ -70,27 +63,40 @@ def inference(data_dir, model_dir, output_dir, args):
     sub_u = []
     sub_i = []
 
-    with torch.no_grad():
-        model.eval()
-        
-        for batch in test_loader:
-            user, pos_item, neg_item, item_seq, seq_len =\
-                (v.to(device) for _,v in batch.items())
-
-            prediction = model.predict(user, pos_item, item_seq, seq_len).squeeze()
-            ranking = torch.topk(prediction, len(prediction))[1]
+    for user_id, item_df in user_item_dfs:
+        test_dataset = dataset_module(item_df)
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=args.batch_size,
+            shuffle=False, 
+            drop_last=False,
+            collate_fn=make_batch,
+        )
+        with torch.no_grad():
+            model.eval()
             
-            pred = []
-            for item_id in ranking :
-                if item_id in item_seq :
-                    continue
-                u = id_to_user[int(user)]
-                i = id_to_movie[int(item_id)]
-                sub_u.append(u)
-                sub_i.append(i)
-                pred.append(i)
-                if len(pred) == 10 :
-                    break
+            prediction = torch.zeros(6807).to(device)
+
+            for batch in test_loader:
+                user, pos_item, neg_item, item_seq, seq_len =\
+                    (v.to(device) for _,v in batch.items())
+
+                output = model.predict(user, pos_item, item_seq, seq_len)
+                prediction += output.sum(axis=0)
+
+            ranking = torch.topk(prediction, len(prediction))[1]
+        
+        pred = []
+        for item_id in ranking :
+            if item_id in test_dataset.item_seq :
+                continue
+            u = id_to_user[int(user_id)]
+            i = id_to_movie[int(item_id)]
+            sub_u.append(u)
+            sub_i.append(i)
+            pred.append(i)
+            if len(pred) == 10 :
+                break
 
     print('Done!!')
 
@@ -107,7 +113,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
-    parser.add_argument('--batch_size', type=int, default=1, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--batch_size', type=int, default=512, help='input batch size for validing (default: 1000)')
+    parser.add_argument('--dataset', type=str, default='SequentialDatasetv2', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--model', type=str, default='FPMC', help='model type (default: DeepFM)')
 
     # Container environment
