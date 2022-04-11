@@ -88,12 +88,11 @@ def train(data_dir, model_dir, args):
     dataset_module = getattr(import_module("dataset"), args.dataset)
     
     train_set = dataset_module(
-        data_dir=data_dir,
+        data_path=data_dir+'gru/train.csv',
     )
     
     valid_set = dataset_module(
-        data_dir=data_dir,
-        is_training=False
+        data_path=data_dir+'gru/valid.csv',
     )
 
     print('Done!!')
@@ -173,9 +172,13 @@ def train(data_dir, model_dir, args):
             for idx, (input, target, mask) in enumerate(valid_loader):
                 input = input.to(device)
                 target = target.to(device)
+
+                hidden = reset_hidden(hidden, mask).detach()
                 logit, hidden = model(input, hidden)
+
                 logit_sampled = logit[:, target.view(-1)]
                 loss = criterion(logit_sampled)
+
                 recall = get_recall(logit, target)
 
                 val_loss_items.append(loss.item())
@@ -185,14 +188,14 @@ def train(data_dir, model_dir, args):
             val_recall_k = np.mean(all_recalls)
             best_val_loss = min(best_val_loss, val_loss)
 
-            if val_recall_k - 0.0001 > best_val_recall_k:
+            if val_recall_k - 0.001 > best_val_recall_k:
                 counter = 0
             else :
                 counter += 1
 
             if val_recall_k > best_val_recall_k:
                 print("New best model for val accuracy! saving the model..")
-                torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
+                torch.save(model.state_dict(), f"{save_dir}/best.pth")
                 best_val_recall_k = val_recall_k
             
             # Callback2: patience 횟수 동안 성능 향상이 없을 경우 학습을 종료시킵니다.
@@ -217,7 +220,7 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
-    parser.add_argument('--epochs', type=int, default=10, help='number of epochs to train (default: 10)')
+    parser.add_argument('--epochs', type=int, default=100, help='number of epochs to train (default: 10)')
     parser.add_argument('--dataset', type=str, default='GRU4RECDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--batch_size', type=int, default=50, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=50, help='input batch size for validing (default: 1000)')
@@ -225,8 +228,8 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer', type=str, default='Adagrad', help='optimizer type (default: Adagrad)')
     parser.add_argument('--criterion', type=str, default='top1_max', help='criterion type (default: top1_max)')
     parser.add_argument('--lr', type=float, default=1e-2, help='learning rate (default: 1e-2)')
-    parser.add_argument('--lr_decay_step', type=int, default=10, help='learning rate scheduler deacy step (default: 10)')
-    parser.add_argument('--log_interval', type=int, default=1000, help='how many batches to wait before logging training status')
+    parser.add_argument('--lr_decay_step', type=int, default=100, help='learning rate scheduler deacy step (default: 10)')
+    parser.add_argument('--log_interval', type=int, default=5000, help='how many batches to wait before logging training status')
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
     parser.add_argument('--patience', type=int, default=5, help='patience for early stopping (default: 5)')
     parser.add_argument('--accumulation_steps', type=int, default=1, help='batch accumulation step (default: 1)')
