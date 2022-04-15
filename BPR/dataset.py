@@ -21,21 +21,6 @@ def zero_based_mapping(data) :
     data['item']  = data['item'].map(lambda x : dict_data['item'][str(x)])
     
     return data, n_user, n_item
-
-
-def make_batch(samples):
-    users = [sample['user'] for sample in samples]
-    pos_items = [sample['pos_item'] for sample in samples]
-    neg_items = [sample['neg_item'] for sample in samples]
-    seq_lens = [sample['seq_len']+1 for sample in samples]
-    item_seqs = [sample['item_seq'] for sample in samples]
-
-    padded_item_seqs = torch.nn.utils.rnn.pad_sequence(item_seqs, batch_first=True)
-    return {'user': torch.stack(users).contiguous(),
-            'pos_item': torch.stack(pos_items).contiguous(),
-            'neg_item': torch.stack(neg_items).contiguous(),
-            'item_seq': padded_item_seqs.contiguous(),
-            'seq_len': torch.stack(seq_lens).contiguous()}
             
 
 class BPRDataset(Dataset):
@@ -211,46 +196,3 @@ class m2vBPRDataset(ContextualBPRDataset):
             attributes[item_id] = m2v_item_emb[np_index]
         
         return attributes
-
-
-class FMDataset(Dataset):
-    def __init__(self, data_path):
-        self.data = pd.read_csv(data_path)
-
-        self.data, _, _ = zero_based_mapping(self.data)
-        self.attributes = self.get_item_attributes()
-
-        self.X = torch.tensor(np.array(self.data.loc[:, ['user', 'item']])).long()
-        self.y = torch.tensor(np.array(self.data.loc[:, 'rating'])).long()
-
-    def __getitem__(self, index):
-        item_i = self.X[index, 1]
-        X = torch.cat([self.X[index], self.attributes[item_i]])
-        return X, self.y[index]
-
-    def __len__(self):
-        return len(self.data)
-
-    def split_dataset(self, train_ratio=0.9) -> Tuple[Subset, Subset]:
-        train_size = int(train_ratio * len(self.data))
-        test_size = len(self.data) - train_size
-        train_dataset, test_dataset = random_split(self, [train_size, test_size])
-        
-        return train_dataset, test_dataset
-    
-    def get_item_attributes(self):
-        data_dir = '/opt/ml/movie-recommendation/data/train/'
-
-        with open(data_dir+'item2attributes.json', 'r') as f:
-            item2attributes = json.load(f)
-
-        attributes = []
-
-        for item in range(6807):    
-            attribute = [0] * 18
-            now_attribute = item2attributes[str(item)]
-            for a in now_attribute[1:]:
-                attribute[a] = 1
-            attributes.append([now_attribute[0]]+attribute)
-        
-        return torch.tensor(attributes)
