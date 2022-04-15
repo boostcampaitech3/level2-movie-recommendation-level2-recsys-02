@@ -1,5 +1,6 @@
 import dgl
-
+import torch
+import torch.nn as nn
 
 def getEmbedding(model, user, pos, neg, output) :
     userEmb0 = model.embedding_user_item(user)

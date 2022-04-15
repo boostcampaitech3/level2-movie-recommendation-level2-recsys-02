@@ -6,17 +6,18 @@ from torch import optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from preprocess import *
+from preprocessing import *
 from dataset import * 
 from lightgcn import *
 from inference import *
 
 def train(args) :
     # preprocessing
-    train_graph, id_to_movie, id_to_user, movie_to_id, id_to_movie, data_array_train, data_array_test, num_user, num_item = preprocess(args.data_path)
+    train_graph, id_to_movie, id_to_user, movie_to_id, id_to_movie, data_array, data_array_train, data_array_test, num_user, num_item, user_to_id = preprocess(args.data_path)
     cosine_sim, m2v_item_index, m2v_item_index_inverse = load_m2v_embeddings()
-    neg_items = load_neg_items()
-    
+
+    neg_items = load_neg_items(data_array)
+
     train_dataset = MovieDataset(data_array_train, neg_items, cosine_sim, id_to_movie, movie_to_id, m2v_item_index, m2v_item_index_inverse)
     test_dataset = MovieDataset(data_array_test, neg_items, cosine_sim, id_to_movie, movie_to_id, m2v_item_index, m2v_item_index_inverse)
     
@@ -67,14 +68,14 @@ def train(args) :
         print(f'Epoch {epoch} || train loss : {loss_sum}  |  test_loss {test_loss_sum}  | best_test_loss {best_test_loss}')
 
     # inference
-    inference(model, train_graph, user_to_id, args.file_name)
+    inference(args.data_path, model, train_graph, user_to_id, id_to_movie, args.file_name, device, num_user)
     
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     # Data and model checkpoints directories
     parser.add_argument('--model', type=str, default='Metapath2Vec', help='model type (default: Metapath2Vec)')
-    parser.add_argument('--data_path', type=str, default='../data/train')
+    parser.add_argument('--data_path', type=str, default='../data/train/')
     parser.add_argument('--embedding_size', type=int, default=64)
     parser.add_argument('--num_layers', type=int, default=5)
     parser.add_argument('--lr', type=int, default=0.001)

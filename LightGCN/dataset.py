@@ -1,12 +1,16 @@
 from sklearn.metrics.pairwise import cosine_similarity
-
+import torch
+from tqdm import tqdm
 import pickle
+import numpy as np
+import os
+from preprocessing import *
 
 def load_m2v_embeddings() :
-    with open('../../Metapath2Vec/embeddings/m2v_item_emb.pkl', 'rb') as f :
+    with open('../Metapath2Vec/embeddings/m2v_item_emb.pkl', 'rb') as f :
         m2v_item_emb = pickle.load(f)
         
-    with open('../../Metapath2Vec/embeddings/m2v_item_index.pkl', 'rb') as f :
+    with open('../Metapath2Vec/embeddings/m2v_item_index.pkl', 'rb') as f :
         m2v_item_index = pickle.load(f)
              
     m2v_item_index_inverse = {v: k for k, v in m2v_item_index.items()}
@@ -14,9 +18,13 @@ def load_m2v_embeddings() :
     
     return cosine_sim, m2v_item_index, m2v_item_index_inverse
 
-def load_neg_items() :
-    with open('./neg_items.pkl', 'rb') as f :
-        neg_items = pickle.load(f)
+def load_neg_items(data_array) :
+    if os.path.isfile("./neg_items.pkl") :
+        with open('./neg_items.pkl', 'rb') as f :
+            neg_items = pickle.load(f)
+    else :
+        all_items = set(np.unique(data_array[:, 1]))
+        neg_items = get_nagative_items(data_array, all_items)
     return neg_items
 
 # negative sampling with m2v embedding cosine similarity
@@ -48,6 +56,5 @@ class MovieDataset(torch.utils.data.Dataset):
         return len(self.users)
 
     def __getitem__(self, idx):
-        #print(idx, self.users[idx], self.pos[idx], self.get_neg_item(users[idx]))
         return self.users[idx], self.pos[idx], self.neg[idx]
     

@@ -1,13 +1,14 @@
 import torch
 import pandas as pd
+from tqdm import tqdm
 
-def get_rating(all_users, items_emb, user) :
-    user_emb = all_users[user]
-    rating = model.f(torch.matmul(user_emb, items_emb.t()))
-    return rating
+# def get_rating(all_users, items_emb, user) :
+#     user_emb = all_users[user]
+#     rating = model.f(torch.matmul(user_emb, items_emb.t()))
+#     return rating
 
 
-def inference(model, train_graph, user_to_id, file_name) :
+def inference(data_path, model, train_graph, user_to_id, id_to_movie, file_name, device, num_user) :
     raw_df = pd.read_csv(data_path + 'train_ratings.csv')
     raw_df.head()
     
@@ -17,8 +18,8 @@ def inference(model, train_graph, user_to_id, file_name) :
     model.eval()
     with torch.no_grad() :
         all_users_items = model(train_graph.to(device), model.embedding_user_item.weight.clone().to(device))
-        all_users = all_users_items[:config["n_users"]]
-        items_emb = all_users_items[config["n_users"]:]
+        all_users = all_users_items[:num_user]
+        items_emb = all_users_items[num_user:]
 
         for user in tqdm(user_to_id.keys()) :
             user_idx = user_to_id[user]
@@ -28,7 +29,7 @@ def inference(model, train_graph, user_to_id, file_name) :
             top_ratings, top_items = torch.topk(torch.tensor(rating), len(rating))
             pred = []
             for idx in top_items :
-                movie = id_to_movie[config["n_users"] + int(idx)]
+                movie = id_to_movie[num_user + int(idx)]
                 if movie in seen_list :
                     continue
                 elif movie not in popular_items :
