@@ -1,5 +1,8 @@
 from datareader import DataReader, Metapath2vecDataset
 from skipgram import *
+from torch.utils.data import DataLoader
+import torch.optim as optim
+from tqdm import tqdm
 
 class Metapath2VecTrainer:
     def __init__(self, path):

@@ -1,6 +1,8 @@
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 import torch
+import os
+from tqdm import tqdm
 
 def inference(args, m2v, user_idx2id) :
     emb = m2v.skip_gram_model.u_embeddings.weight.cpu().data.numpy()

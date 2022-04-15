@@ -25,8 +25,8 @@ def preprocess(args) :
     rating_df['user'] = rating_df['user'].apply(lambda x: user_id2idx[f"u{x}"])
     rating_df['item'] = rating_df['item'].apply(lambda x: item_id2idx[f"i{x}"])
     
-    graph = construct_graph(rating_df)
-    create_metapath(args)
+    graph = consrtruct_graph(rating_df)
+    create_metapath(args, graph, item_idx2id)
     return rating_df, user_id2idx, user_idx2id, item_id2idx, item_idx2id
 
 def consrtruct_graph(df) :
@@ -35,12 +35,12 @@ def consrtruct_graph(df) :
             ('item', 'iu', 'user') : (list(df['item']), list(df['user']))})
     return hg
 
-def create_metapath(args) :
+def create_metapath(args, graph, item_idx2id) :
     output_file = open(os.path.join(args.path, 'metapath.txt'), "w")
-    for user_idx in trange(hg.number_of_nodes('user')):
+    for user_idx in trange(graph.number_of_nodes('user')):
         traces, _ = dgl.sampling.random_walk(
-            hg, [user_idx] * args.num_walks_per_node, metapath=['ui', 'iu'] * args.walk_length)
-        n = 2
+            graph, [user_idx] * args.num_walks_per_node, metapath=['ui', 'iu'] * args.walk_length)
+
         for tr in traces:
             tr = tr[tr[:,]!=-1]
 
